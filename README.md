@@ -107,9 +107,9 @@ Interactive Steps:
 Example Output
 --------------
 
-╔════════════════════════════════════════════════╗
-║   EC2 Cross-Account Transfer Tool              ║
-╚════════════════════════════════════════════════╝
+
+ EC2 Cross-Account Transfer Tool          
+
 
 Step 1: Source Account Credentials
 ✓ Source Account: 123456789012
@@ -156,9 +156,9 @@ Creating AMI from source instance...
 ✓ Snapshots shared
 ✓ Instance running
 
-╔════════════════════════════════════════════════╗
-║      Transfer Completed Successfully!          ║
-╚════════════════════════════════════════════════╝
+
+     Transfer Completed Successfully!       
+
 
 Source Instance: i-0abc123
 Target Instance: i-0xyz789
