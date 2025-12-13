@@ -31,11 +31,7 @@ configure_aws_profile() {
     aws configure set output json --profile "$profile_name"
 }
 
-cleanup() {
-    aws configure --profile source-account set aws_access_key_id "" 2>/dev/null || true
-    aws configure --profile target-account set aws_access_key_id "" 2>/dev/null || true
-}
-trap cleanup EXIT
+
 
 echo -e "${GREEN}╔════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║   EC2 Cross-Account Transfer Tool             ║${NC}"
@@ -56,6 +52,20 @@ while true; do
     SOURCE_ACCOUNT_ID=$(aws sts get-caller-identity --profile source-account --query Account --output text 2>&1)
     if [ $? -eq 0 ] && [[ "$SOURCE_ACCOUNT_ID" =~ ^[0-9]{12}$ ]]; then
         echo -e "${GREEN}✓ Source Account: $SOURCE_ACCOUNT_ID${NC}"
+        
+        echo "Verifying permissions..."
+        PERMS_OK=true
+        
+        aws ec2 describe-instances --profile source-account --region $SOURCE_REGION --max-results 5 &>/dev/null || PERMS_OK=false
+        aws ec2 describe-images --profile source-account --region $SOURCE_REGION --owners self --max-results 5 &>/dev/null || PERMS_OK=false
+        
+        if [ "$PERMS_OK" = "false" ]; then
+            echo -e "${RED}✗ Missing required EC2 permissions (DescribeInstances, DescribeImages, CreateImage, ModifyImageAttribute, ModifySnapshotAttribute)${NC}"
+            echo
+            continue
+        fi
+        
+        echo -e "${GREEN}✓ Permissions verified${NC}"
         break
     fi
     echo -e "${RED}Invalid credentials or unable to authenticate. Please try again.${NC}"
@@ -168,6 +178,21 @@ while true; do
     TARGET_ACCOUNT_ID=$(aws sts get-caller-identity --profile target-account --query Account --output text 2>&1)
     if [ $? -eq 0 ] && [[ "$TARGET_ACCOUNT_ID" =~ ^[0-9]{12}$ ]]; then
         echo -e "${GREEN}✓ Target Account: $TARGET_ACCOUNT_ID${NC}"
+        
+        echo "Verifying permissions..."
+        PERMS_OK=true
+        
+        aws ec2 describe-vpcs --profile target-account --region $TARGET_REGION --max-results 5 &>/dev/null || PERMS_OK=false
+        aws ec2 describe-subnets --profile target-account --region $TARGET_REGION --max-results 5 &>/dev/null || PERMS_OK=false
+        aws ec2 describe-security-groups --profile target-account --region $TARGET_REGION --max-results 5 &>/dev/null || PERMS_OK=false
+        
+        if [ "$PERMS_OK" = "false" ]; then
+            echo -e "${RED}✗ Missing required EC2 permissions (DescribeVpcs, DescribeSubnets, DescribeSecurityGroups, CreateSecurityGroup, RunInstances)${NC}"
+            echo
+            continue
+        fi
+        
+        echo -e "${GREEN}✓ Permissions verified${NC}"
         break
     fi
     echo -e "${RED}Invalid credentials or unable to authenticate. Please try again.${NC}"
@@ -656,5 +681,6 @@ echo "Private IP: $INSTANCE_IP"
 echo "Public IP: $PUBLIC_IP"
 echo "Region: $TARGET_REGION"
 echo
-echo -e "${YELLOW}IMPORTANT: Rotate the AWS credentials used in this transfer${NC}"
+echo -e "${YELLOW}Note: AWS profiles 'source-account' and 'target-account' remain configured${NC}"
+echo -e "${YELLOW}Clear them manually if needed: aws configure --profile <profile> set aws_access_key_id ''${NC}"
 echo
